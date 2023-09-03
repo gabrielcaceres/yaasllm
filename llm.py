@@ -25,6 +25,8 @@ class OpenAIChatModel:
         self.last_run = None
         self.chat_history = [ ]
 
+    @retry(wait=wait_random_exponential(min=1, max=60),
+           stop=stop_after_attempt(6))
     def generate(
             self,
             messages: list[dict[str, str]],

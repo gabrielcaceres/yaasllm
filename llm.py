@@ -18,11 +18,12 @@ class OpenAIChatModel:
             model: str = "gpt-3.5-turbo",
             system_prompt: str = "",
             **kwargs: Any
-    ) -> Any:
+    ) -> None:
         self.model = model
         self.system_prompt = system_prompt
         self.openai_args = dict(model=model, **kwargs)
         self.last_run = None
+        self.chat_history = [ ]
 
     def generate(
             self,
@@ -49,4 +50,21 @@ class OpenAIChatModel:
         messages = [msg(self.system_prompt, "system"),
                     msg(prompt, "user")]
         responses = self.generate(messages, **kwargs)
+        self.chat_history = [msg(prompt, "user"),
+                             msg(responses[0], "assistant")]
         return responses
+
+    def chat(
+            self,
+            prompt: str,
+            **kwargs: Any
+    ) -> str:
+        self.chat_history.append(msg(prompt, "user"))
+        system_msg = msg(self.system_prompt, "system")
+        response = self.generate([system_msg] + self.chat_history, **kwargs)[0]
+        self.chat_history.append(msg(response, "assistant"))
+        return response
+
+    def clear_chat(self) -> None:
+        self.chat_history = [ ]
+

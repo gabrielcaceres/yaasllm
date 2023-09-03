@@ -26,4 +26,9 @@ class OpenAIChatModel:
             response_object=response_object.copy(),
         )
         return responses
-        
+
+    def __call__(self, prompt, **kwargs):
+        messages = [msg(self.system_prompt, "system"),
+                    msg(prompt, "user")]
+        responses = self.generate(messages, **kwargs)
+        return responses

@@ -46,23 +46,24 @@ class OpenAIChatModel:
 
     def __call__(
             self,
-            prompt: str,
+            prompt: str | None,
             **kwargs: Any
     ) -> list[str]:
-        messages = [msg(self.system_prompt, "system"),
-                    msg(prompt, "user")]
-        responses = self.generate(messages, **kwargs)
-        self.chat_history = [msg(prompt, "user"),
-                             msg(responses[0], "assistant")]
+        self.clear_chat()
+        messages = [msg(self.system_prompt, "system")]
+        if prompt:
+            messages.append(msg(prompt, "user"))
+            self.chat_history.append(msg(prompt, "user"))           responses = self.generate(messages, **kwargs)
+        self.chat_history.append(msg(responses[0], "assistant"))
         return responses
 
     def chat(
             self,
-            prompt: str,
+            prompt: str | None,
             **kwargs: Any
     ) -> str:
-        self.chat_history.append(msg(prompt, "user"))
-        system_msg = msg(self.system_prompt, "system")
+        if prompt:
+            self.chat_history.append(msg(prompt, "user"))           system_msg = msg(self.system_prompt, "system")
         response = self.generate([system_msg] + self.chat_history, **kwargs)[0]
         self.chat_history.append(msg(response, "assistant"))
         return response

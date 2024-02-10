@@ -11,7 +11,7 @@ class PartialFillDict(dict):
 
 
 class Prompt(UserString):
-    def __init__(self, text: str | Prompt, dedent_text: bool = True):
+    def __init__(self, text: str, dedent_text: bool = True):
         self.dedent_text = dedent_text
         if isinstance(text, Prompt):
             text = text.data

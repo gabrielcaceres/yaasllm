@@ -47,6 +47,15 @@ Actions:
 """
 )
 
+
+obs_prompt = Prompt("""\
+---
+Observations: {obs}
+...
+""")
+
+obs_format = obs_prompt(obs="<observations> # the results returned from the selected Actions")
+
 sys_prompt_template = Prompt("""\
 You are a helpful assistant who relies on a set of tools to help provide answers. You will think through the question, decide on an action to take and provide that to the 'user', and then build from the observation your receive as input.
 
@@ -64,16 +73,8 @@ You can use YAML anchors (`&`) to label values and aliases (`*`) to reference la
 
 The 'user' will provide you with the following input showing the result of your action:
 ```yaml
----
-Observations: <observations> # the results returned from the selected Actions
-...
+{obs_format}
 ```
-""")
-
-obs_prompt = Prompt("""\
----
-Observations: {obs}
-...
 """)
 
 class Agent:
@@ -82,6 +83,7 @@ class Agent:
         sys_prompt = sys_prompt_template.format(
             answer_format=answer_format,
             tool_descriptions=toolkit.actions_available(),
+            obs_format=obs_format,
         ).data
         self.llm = llm_class(system_prompt=sys_prompt)
         self.toolkit = toolkit

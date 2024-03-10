@@ -53,11 +53,23 @@ class Tool:
 
 class Toolkit:
     
-    def __init__(self):
-        self.tools = dict()
+    def __init__(self, *args: Tool):
+        if args:
+            self.tools = {tool.tool_name: tool for tool in args}
+        else:
+            self.tools = dict()
 
     def add_tools(self, *args: Tool):
         self.tools.update({tool.tool_name: tool for tool in args})
+
+    def rm_tools(self, *args: Tool | str):
+        for tool in args:
+            if isinstance(tool, Tool):
+                del self.tools[tool.tool_name]
+            elif isinstance(tool, str):
+                del self.tools[tool]
+            else:
+                raise TypeError("Can only remove type 'Tool' or a name of type 'str'")
 
     def actions_available(self) -> str:
         action_map = CommentedMap()

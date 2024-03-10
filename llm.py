@@ -10,7 +10,6 @@ def msg(
 ) -> dict[str, Any]:
     return dict(role=role, content=prompt, **kwargs)
 
-
 class OpenAIChatModel:
 
     def __init__(
@@ -72,4 +71,3 @@ class OpenAIChatModel:
 
     def clear_chat(self) -> None:
         self.chat_history = [ ]
-

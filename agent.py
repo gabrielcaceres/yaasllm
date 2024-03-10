@@ -23,12 +23,14 @@ Step:  # iteration number for the current task, starting with 0. Increase as you
 Knowledge: |  # review the facts you currently know and what you still need to figure out
 Plan: |  # think step by step about what you should do next
 Actions: !!seq  # list of actions to take, can be multiple at a time
-  - &{label}  # unique label to reference the output of this action
+  -
     tool_name: !!str  # name of tool to use
     tool_inputs: !!map  # inputs to selected tool
 ...
 ```
 """)
+# Temporarily removing Reference to anchor
+# &{label}  # unique label to reference the output of this action
 
 example_action = Prompt("""\
 ---
@@ -69,13 +71,16 @@ These are tools you have at your disposal for actions:
 The following code block shows the format your answers should follow:
 {answer_format}
 
-You can use YAML anchors (`&`) to label values and aliases (`*`) to reference labels with any previous values you want to reuse. Follow the syntax from the standard YAML specification.
-
 The 'user' will provide you with the following input showing the result of your action:
 ```yaml
 {obs_format}
 ```
 """)
+
+# Placeholder instructions about using anchors
+# currently not set up to be able to evaluate
+# You can use YAML anchors (`&`) to label values and aliases (`*`) to reference labels with any previous values you want to reuse. Follow the syntax from the standard YAML specification.
+
 
 class Agent:
 
@@ -91,14 +96,11 @@ class Agent:
 
     def run(self, query):
         msg = self.llm.chat(obs_prompt.format(obs=query).data)
-        print(msg)
         actions = self.get_actions(msg)
         while "final answer" not in self.get_tool_list(actions):
             outcomes = self.use_tools(actions)
             observations = self.format_obs(outcomes)
-            print(observations)
             msg = self.llm.chat(observations)
-            print(msg)
             actions = self.get_actions(msg)
         return self.use_tools(actions)
 
@@ -125,15 +127,10 @@ class Agent:
         clean_msg = clean_msg.removeprefix("\n")
         clean_msg = clean_msg.removesuffix("\n")
         clean_msg = clean_msg.removesuffix("```")
-        print("cleaned message")
-        print(clean_msg)
-        print("end cleaned message")
-        print("Commented map")
-        print(yaml.load(clean_msg))
-        print("end Commented map")
         return yaml.load(clean_msg)
 
     def format_obs(self, outcomes):
         obs_sep = '\n  - '
         obs = obs_sep + obs_sep.join(outcomes)
         return f"---\nObservation: {obs}\n..."
+

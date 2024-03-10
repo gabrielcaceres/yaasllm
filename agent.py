@@ -78,7 +78,72 @@ Observations: {obs}
 
 class Agent:
 
-    def __init__(self, llm_class, toolkit):
+    def __init__(self,
+                 llm,
+                 toolkit: Toolkit,
+                 system_prompt: Prompt | str | None = None,
+                 init_history = None,
+                 ):
+        self.llm = llm
+        self.toolkit = toolkit
+        self.system_prompt = system_prompt or llm.system_prompt
+        self.init_history = init_history or []
+        self.history = init_history or []
+
+    @property
+    def tool_list(self):
+        return self.toolkit.tool_list
+
+    @property
+    def system_prompt(self):
+        return self.llm.system_prompt
+
+    @system_prompt.setter
+    def system_prompt(self, new_system_prompt):
+        self.llm.system_prompt = new_system_prompt
+
+    @property
+    def history(self):
+        return self.llm.chat_history
+
+    @history.setter
+    def history(self, new_history):
+        self.llm.chat_history = new_history
+
+    def add_to_history(self, msg):
+        self.llm.chat_history.append(msg)
+
+    def reset_history(self):
+        self.history = self.init_history
+
+    def clear_history(self):
+        self.history = []
+
+    def run(self, task: Prompt | str, reset_history = True):
+        if reset_history:
+            self.reset_history()
+        self.task_completed = False
+        self.add_to_history(task)
+        next_actions = self.decide_next_actions(self.history)
+        # self.add_to_history(next_actions)
+        finished = self.check_finish(next_actions)
+        while not self.finished:
+            results = self.execute_actions(next_actions)
+            self.add_to_history(results)
+            next_actions = self.decide_next_actions(self.history)
+            self.add_to_history(next_actions)
+        return self.execute_actions(next_actions)
+
+    def decide_next_actions(self, context):
+        pass
+
+    def execute_actions(self, actions):
+        pass
+      
+
+class Agent_old:
+
+    def __init__(self, llm, toolkit):
         sys_prompt = sys_prompt_template.format(
             answer_format=answer_format,
             tool_descriptions=toolkit.actions_available(),

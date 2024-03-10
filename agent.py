@@ -136,3 +136,6 @@ class Agent:
 
     def print_logic(self):
         print(self.llm.chat_history)
+
+    def reset_history(self):
+        self.llm.chat_history = [msg(example_action.data, "assistant")]

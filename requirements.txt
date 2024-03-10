@@ -1,0 +1,6 @@
+certifi==2023.7.22
+docker-pycreds==0.4.0
+munkres==1.1.4
+pathtools==0.1.2
+protobuf==4.23.4
+ruamel.yaml.string==0.1.1

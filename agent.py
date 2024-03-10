@@ -134,3 +134,5 @@ class Agent:
         obs = obs_sep + obs_sep.join(outcomes)
         return f"---\nObservation: {obs}\n..."
 
+    def print_logic(self):
+        print(self.llm.chat_history)

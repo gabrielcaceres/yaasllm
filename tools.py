@@ -3,10 +3,44 @@ from collections.abc import Iterable
 from ruamel.yaml import YAML, yaml_object
 from ruamel.yaml.comments import CommentedMap, CommentedSeq
 import sys
+from dataclasses import dataclass
 yaml = YAML(typ=['rt', 'string'])
 yaml.indent(mapping=2, sequence=4, offset=2)
 
+
+@dataclass
+class ToolParam:
+    name: str
+    description: str
+    default: Any | None = None
+    enum: list[Any] | None = None
+
+    def __post_init__(self):
+        self.schema = {self.name: {"description": self.description}}
+        if self.default:
+            self.schema[self.name]["default"] = self.default
+        if self.enum:
+            self.schema[self.name]["enum"] = self.enum
+
+
+@dataclass
 class Tool:
+    function: Callable
+    name: str
+    description: str
+    params: list[ToolParam]
+
+    def __post_init__(self):
+        self.schema = {self.name: {"description": self.description, "parameters": {}}}
+        for par in self.params:
+            self.schema[self.name]["parameters"].update(par.schema)
+
+    def use(self, **kwargs):
+        pass
+        
+        
+    
+class Tool_old:
 
     def __init__(self,
                  tool_name: str,

@@ -1,6 +1,6 @@
 from typing import Optional
 from prompt import Prompt
-from tools import yaml
+from tools import Toolkit
 from llm import msg
 
 # answer_format = Prompt("""\
@@ -80,19 +80,19 @@ class Agent:
 
     def __init__(self,
                  llm,
-                 toolkit: Toolkit,
+                 tools: list[Tool],
                  system_prompt: Prompt | str | None = None,
                  init_history = None,
                  ):
         self.llm = llm
-        self.toolkit = toolkit
+        self.toolkit = Toolkit(*tools)
         self.system_prompt = system_prompt or llm.system_prompt
         self.init_history = init_history or []
         self.history = init_history or []
 
-    @property
-    def tool_list(self):
-        return self.toolkit.tool_list
+    # @property
+    # def tool_list(self):
+    #     return self.toolkit.tool_list
 
     @property
     def system_prompt(self):
@@ -122,24 +122,24 @@ class Agent:
     def run(self, task: Prompt | str, reset_history = True):
         if reset_history:
             self.reset_history()
-        self.task_completed = False
-        self.add_to_history(task)
-        next_actions = self.decide_next_actions(self.history)
-        # self.add_to_history(next_actions)
-        finished = self.check_finish(next_actions)
-        while not self.finished:
-            results = self.execute_actions(next_actions)
-            self.add_to_history(results)
-            next_actions = self.decide_next_actions(self.history)
-            self.add_to_history(next_actions)
-        return self.execute_actions(next_actions)
+        action_plan = self.determine_actions(task)
+        outcome = self.execute(action_plan)
+        while not self.is_final_action():
+            action_plan = self.determine_actions(outcome)
+            outcome = self.execute(action_plan)
+        return outcome
 
-    def decide_next_actions(self, context):
-        pass
+    def determine_actions(self, context):
+        response = self.llm.chat(obs_prompt.format(obs=context).data)
+        return response
 
-    def execute_actions(self, actions):
-        pass
-      
+    def execute(self, action_plan):
+        outcome = self.toolkit.perform_actions(action_plan)
+        return
+
+    def is_final_action(self):
+        return self.toolkit.final_action
+
 
 class Agent_old:
 
@@ -182,19 +182,19 @@ class Agent_old:
             outcomes.append(tool_output)
         return outcomes
 
-    def load_msg(self, msg: str):
-        clean_msg = msg.removeprefix("```")
-        clean_msg = clean_msg.removeprefix("yaml")
-        clean_msg = clean_msg.removeprefix("\n")
-        clean_msg = clean_msg.removesuffix("\n")
-        clean_msg = clean_msg.removesuffix("```")
-        print("cleaned message")
-        print(clean_msg)
-        print("end cleaned message")
-        print("Commented map")
-        print(yaml.load(clean_msg))
-        print("end Commented map")
-        return yaml.load(clean_msg)
+    # def load_msg(self, msg: str):
+    #     clean_msg = msg.removeprefix("```")
+    #     clean_msg = clean_msg.removeprefix("yaml")
+    #     clean_msg = clean_msg.removeprefix("\n")
+    #     clean_msg = clean_msg.removesuffix("\n")
+    #     clean_msg = clean_msg.removesuffix("```")
+    #     print("cleaned message")
+    #     print(clean_msg)
+    #     print("end cleaned message")
+    #     print("Commented map")
+    #     print(yaml.load(clean_msg))
+    #     print("end Commented map")
+    #     return yaml.load(clean_msg)
 
     def format_obs(self, outcomes):
         obs_sep = '\n  - '

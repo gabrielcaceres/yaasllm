@@ -4,8 +4,6 @@ from ruamel.yaml import YAML, yaml_object
 from ruamel.yaml.comments import CommentedMap, CommentedSeq
 import sys
 from dataclasses import dataclass
-yaml = YAML(typ=['rt', 'string'])
-yaml.indent(mapping=2, sequence=4, offset=2)
 
 
 @dataclass
@@ -31,15 +29,78 @@ class Tool:
     params: list[ToolParam]
 
     def __post_init__(self):
-        self.schema = {self.name: {"description": self.description, "parameters": {}}}
+        self.schema = {
+            self.name: {"type": "Tool",
+                        "description": self.description,
+                        "parameters": {}
+                        }
+        }
         for par in self.params:
             self.schema[self.name]["parameters"].update(par.schema)
 
     def use(self, **kwargs):
-        pass
-        
-        
+        return self.function(**kwargs)
+
+class Toolkit:
+
+    def __init__(self, *args: Tool):
+        if args:
+            self.tools = {tool.name: tool for tool in args}
+        else:
+            self.tools = dict()
+        self.yaml = YAML(typ=['rt', 'string'])
+        self.yaml.indent(mapping=2, sequence=4, offset=2)
+
+    @property
+    def actions_schema(self):
+        schema = {}
+        for tool in self.tools.values():
+            schema.update(tool.schema)
+        return schema
+
+    @property
+    def tool_names(self):
+        return self.tools.keys()
     
+    @property
+    def actions_schema_formatted(self) -> str:
+        return self.yaml.dump_to_string(self.actions_schema)
+
+    def perform_actions(self, actions: str):
+        outcomes = list()
+        for action in actions:
+            tool_name = action.get("tool_name")
+            tool_inputs = action.get("tool_inputs")
+            tool = self.tools[tool_name]
+            tool_output = tool.use(**tool_inputs)
+            outcomes.append(tool_output)
+        return outcomes
+
+    def add_tools(self, *args: Tool):
+        self.tools.update({tool.tool_name: tool for tool in args})
+
+    def rm_tools(self, *args: Tool | str):
+        for tool in args:
+            if isinstance(tool, Tool):
+                del self.tools[tool.tool_name]
+            elif isinstance(tool, str):
+                del self.tools[tool]
+            else:
+                raise TypeError("Can only remove type 'Tool' or a name of type 'str'")
+
+    def load_actions(self, input: str):
+        clean_input = self.clean_input_str(input)
+        return yaml.load(clean_input)["Actions"]
+
+    def clean_input_str(self, input: str) -> str:
+        clean_input = input.removeprefix("```")
+        clean_input = clean_input.removeprefix("yaml")
+        clean_input = clean_input.removeprefix("\n")
+        clean_input = clean_input.removesuffix("\n")
+        clean_input = clean_input.removesuffix("```")
+        return clean_input
+
+
 class Tool_old:
 
     def __init__(self,

@@ -1,6 +1,6 @@
 from typing import Optional
 from prompt import Prompt
-from tools import Toolkit
+from tools import Tool, Toolkit
 from llm import msg
 
 # answer_format = Prompt("""\
@@ -23,12 +23,12 @@ Step:  # iteration number for the current task, starting with 0. Increase as you
 Knowledge: |  # review the facts you currently know and what you still need to figure out
 Plan: |  # think step by step about what you should do next
 Actions: !!seq  # list of actions to take, can be multiple at a time
-  - &{label}  # unique label to reference the output of this action
-    tool_name: !!str  # name of tool to use
+  - tool_name: !!str  # name of tool to use
     tool_inputs: !!map  # inputs to selected tool
 ...
 ```
 """)
+  # - &{label}  # unique label to reference the output of this action
 
 example_action = Prompt("""\
 ---
@@ -60,8 +60,6 @@ These are tools you have at your disposal for actions:
 The following code block shows the format your answers should follow:
 {answer_format}
 
-You can use YAML anchors (`&`) to label values and aliases (`*`) to reference labels with any previous values you want to reuse. Follow the syntax from the standard YAML specification.
-
 The 'user' will provide you with the following input showing the result of your action:
 ```yaml
 ---
@@ -69,6 +67,9 @@ Observations: <observations> # the results returned from the selected Actions
 ...
 ```
 """)
+
+# You can use YAML anchors (`&`) to label values and aliases (`*`) to reference labels with any previous values you want to reuse. Follow the syntax from the standard YAML specification.
+
 
 obs_prompt = Prompt("""\
 ---
@@ -86,9 +87,12 @@ class Agent:
                  ):
         self.llm = llm
         self.toolkit = Toolkit(*tools)
-        self.system_prompt = system_prompt or llm.system_prompt
+        sys_prompt = sys_prompt_template.format(
+            answer_format=answer_format,
+            tool_descriptions=self.toolkit.actions_schema_formatted).data
+        self.system_prompt = system_prompt or llm.system_prompt or sys_prompt
         self.init_history = init_history or []
-        self.history = init_history or []
+        self.history = self.init_history.copy() or []
 
     # @property
     # def tool_list(self):
@@ -108,34 +112,36 @@ class Agent:
 
     @history.setter
     def history(self, new_history):
-        self.llm.chat_history = new_history
+        self.llm.chat_history = new_history.copy()
 
     def add_to_history(self, msg):
         self.llm.chat_history.append(msg)
 
     def reset_history(self):
-        self.history = self.init_history
+        self.history = self.init_history.copy()
 
     def clear_history(self):
         self.history = []
 
-    def run(self, task: Prompt | str, reset_history = True):
-        if reset_history:
+    def run(self, task: Prompt | str, reset = True):
+        if reset:
             self.reset_history()
         action_plan = self.determine_actions(task)
         outcome = self.execute(action_plan)
+        print(action_plan)
+        print(outcome)
         while not self.is_final_action():
             action_plan = self.determine_actions(outcome)
             outcome = self.execute(action_plan)
         return outcome
 
     def determine_actions(self, context):
-        response = self.llm.chat(obs_prompt.format(obs=context).data)
+        response = self.llm.chat(prompt=obs_prompt.format(obs=context).data)
         return response
 
     def execute(self, action_plan):
         outcome = self.toolkit.perform_actions(action_plan)
-        return
+        return outcome
 
     def is_final_action(self):
         return self.toolkit.final_action
@@ -148,7 +154,7 @@ class Agent_old:
             answer_format=answer_format,
             tool_descriptions=toolkit.actions_available(),
         ).data
-        self.llm = llm_class(system_prompt=sys_prompt)
+        self.llm = llm(system_prompt=sys_prompt)
         self.toolkit = toolkit
         self.llm.chat_history = [msg(example_action.data, "assistant")]
 

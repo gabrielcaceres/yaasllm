@@ -50,6 +50,7 @@ class Toolkit:
             self.tools = dict()
         self.yaml = YAML(typ=['rt', 'string'])
         self.yaml.indent(mapping=2, sequence=4, offset=2)
+        self.final_action = False
 
     @property
     def actions_schema(self):
@@ -68,13 +69,16 @@ class Toolkit:
 
     def perform_actions(self, actions: str):
         outcomes = list()
+        self.final_action = False
         for action in actions:
             tool_name = action.get("tool_name")
             tool_inputs = action.get("tool_inputs")
             tool = self.tools[tool_name]
             tool_output = tool.use(**tool_inputs)
             outcomes.append(tool_output)
-        return outcomes
+            if tool_name = "final answer":
+                self.final_action = True
+        return self.format_obs(outcomes)
 
     def add_tools(self, *args: Tool):
         self.tools.update({tool.tool_name: tool for tool in args})
@@ -99,7 +103,13 @@ class Toolkit:
         clean_input = clean_input.removesuffix("\n")
         clean_input = clean_input.removesuffix("```")
         return clean_input
-
+  
+    def format_obs(self, outcomes):
+        obs_sep = '\n  - '
+        obs = obs_sep + obs_sep.join(outcomes)
+        return f"---\nObservation: {obs}\n..."
+    
+    
 
 class Tool_old:
 

@@ -28,7 +28,8 @@ Actions: !!seq  # list of actions to take, can be multiple at a time
 ...
 ```
 """)
-  # - &{label}  # unique label to reference the output of this action
+# Temporarily removing Reference to anchor
+# &{label}  # unique label to reference the output of this action
 
 example_action = Prompt("""\
 ---
@@ -47,6 +48,15 @@ Actions:
 """
 )
 
+
+obs_prompt = Prompt("""\
+---
+Observations: {obs}
+...
+""")
+
+obs_format = obs_prompt(obs="<observations> # the results returned from the selected Actions")
+
 sys_prompt_template = Prompt("""\
 You are a helpful assistant who relies on a set of tools to help provide answers. You will think through the question, decide on an action to take and provide that to the 'user', and then build from the observation your receive as input.
 
@@ -62,12 +72,12 @@ The following code block shows the format your answers should follow:
 
 The 'user' will provide you with the following input showing the result of your action:
 ```yaml
----
-Observations: <observations> # the results returned from the selected Actions
-...
+{obs_format}
 ```
 """)
 
+# Placeholder instructions about using anchors
+# currently not set up to be able to evaluate
 # You can use YAML anchors (`&`) to label values and aliases (`*`) to reference labels with any previous values you want to reuse. Follow the syntax from the standard YAML specification.
 
 
@@ -76,6 +86,7 @@ obs_prompt = Prompt("""\
 Observations: {obs}
 ...
 """)
+
 
 class Agent:
 
@@ -145,3 +156,6 @@ class Agent:
 
     def is_final_action(self):
         return self.toolkit.final_action
+
+    def print_logic(self):
+        print(self.llm.chat_history)

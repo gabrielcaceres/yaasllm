@@ -1,6 +1,6 @@
 from typing import Optional
 from prompt import Prompt
-from tools import yaml
+from tools import Tool, Toolkit
 from llm import msg
 
 # answer_format = Prompt("""\
@@ -23,8 +23,7 @@ Step:  # iteration number for the current task, starting with 0. Increase as you
 Knowledge: |  # review the facts you currently know and what you still need to figure out
 Plan: |  # think step by step about what you should do next
 Actions: !!seq  # list of actions to take, can be multiple at a time
-  -
-    tool_name: !!str  # name of tool to use
+  - tool_name: !!str  # name of tool to use
     tool_inputs: !!map  # inputs to selected tool
 ...
 ```
@@ -82,60 +81,81 @@ The 'user' will provide you with the following input showing the result of your 
 # You can use YAML anchors (`&`) to label values and aliases (`*`) to reference labels with any previous values you want to reuse. Follow the syntax from the standard YAML specification.
 
 
+obs_prompt = Prompt("""\
+---
+Observations: {obs}
+...
+""")
+
+
 class Agent:
 
-    def __init__(self, llm_class, toolkit):
+    def __init__(self,
+                 llm,
+                 tools: list[Tool],
+                 system_prompt: Prompt | str | None = None,
+                 init_history = None,
+                 ):
+        self.llm = llm
+        self.toolkit = Toolkit(*tools)
         sys_prompt = sys_prompt_template.format(
             answer_format=answer_format,
-            tool_descriptions=toolkit.actions_available(),
-            obs_format=obs_format,
-        ).data
-        self.llm = llm_class(system_prompt=sys_prompt)
-        self.toolkit = toolkit
-        self.llm.chat_history = [msg(example_action.data, "assistant")]
+            tool_descriptions=self.toolkit.actions_schema_formatted).data
+        self.system_prompt = system_prompt or llm.system_prompt or sys_prompt
+        self.init_history = init_history or []
+        self.history = self.init_history.copy() or []
 
-    def run(self, query):
-        msg = self.llm.chat(obs_prompt.format(obs=query).data)
-        actions = self.get_actions(msg)
-        while "final answer" not in self.get_tool_list(actions):
-            outcomes = self.use_tools(actions)
-            observations = self.format_obs(outcomes)
-            msg = self.llm.chat(observations)
-            actions = self.get_actions(msg)
-        return self.use_tools(actions)
+    # @property
+    # def tool_list(self):
+    #     return self.toolkit.tool_list
 
-    def get_actions(self, msg):
-        msg_dict = self.load_msg(msg)
-        return msg_dict['Actions']
+    @property
+    def system_prompt(self):
+        return self.llm.system_prompt
 
-    def get_tool_list(self, actions):
-        return [action.get("tool_name") for action in actions]
-    
-    def use_tools(self, actions):
-        outcomes = list()
-        for action in actions:
-            tool_name = action.get("tool_name")
-            tool_inputs = action.get("tool_inputs")
-            tool = self.toolkit.tools[tool_name]
-            tool_output = tool.use(**tool_inputs)
-            outcomes.append(tool_output)
-        return outcomes
+    @system_prompt.setter
+    def system_prompt(self, new_system_prompt):
+        self.llm.system_prompt = new_system_prompt
 
-    def load_msg(self, msg: str):
-        clean_msg = msg.removeprefix("```")
-        clean_msg = clean_msg.removeprefix("yaml")
-        clean_msg = clean_msg.removeprefix("\n")
-        clean_msg = clean_msg.removesuffix("\n")
-        clean_msg = clean_msg.removesuffix("```")
-        return yaml.load(clean_msg)
+    @property
+    def history(self):
+        return self.llm.chat_history
 
-    def format_obs(self, outcomes):
-        obs_sep = '\n  - '
-        obs = obs_sep + obs_sep.join(outcomes)
-        return f"---\nObservation: {obs}\n..."
+    @history.setter
+    def history(self, new_history):
+        self.llm.chat_history = new_history.copy()
+
+    def add_to_history(self, msg):
+        self.llm.chat_history.append(msg)
+
+    def reset_history(self):
+        self.history = self.init_history.copy()
+
+    def clear_history(self):
+        self.history = []
+
+    def run(self, task: Prompt | str, reset = True):
+        if reset:
+            self.reset_history()
+        action_plan = self.determine_actions(task)
+        outcome = self.execute(action_plan)
+        print(action_plan)
+        print(outcome)
+        while not self.is_final_action():
+            action_plan = self.determine_actions(outcome)
+            outcome = self.execute(action_plan)
+        return outcome
+
+    def determine_actions(self, context):
+        response = self.llm.chat(prompt=obs_prompt.format(obs=context).data)
+        return response
+
+    def execute(self, action_plan):
+        outcome = self.toolkit.perform_actions(action_plan)
+        return outcome
+
+    def is_final_action(self):
+        return self.toolkit.final_action
 
     def print_logic(self):
         print(self.llm.chat_history)
-
-    def reset_history(self):
-        self.llm.chat_history = [msg(example_action.data, "assistant")]

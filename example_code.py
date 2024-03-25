@@ -4,7 +4,7 @@ import openai
 from typing import Annotated
 
 from llm import msg, OpenAIChatModel
-from tools import Tool, Toolkit#, Action
+from tools import Tool, Toolkit, ToolParam
 from agent import Agent
 from math import prod
 
@@ -13,65 +13,68 @@ openai.api_key = os.environ.get("OPENAI_API_KEY")
 
 llm = OpenAIChatModel()
 
-def final_answer(answer: Annotated[str, "test"]):
+def final_answer(answer: str):
     return answer
 
 
-def user_input(query):
+def user_input(query: str):
     print("please answer the request")
     return input()
 
 # Fake function to represent web search but actually uses user input
-def search(query: Annotated[str, "test"]) -> str:
+def search(query: str) -> str:
     return input()
 
-def adder(a: Annotated[int | float, "first number"],
-          b: Annotated[int | float, "second number"],
-          *args: Annotated[int | float, "additional numbers"],
-          ):
-    return a+b+sum(args)
+def adder(arg_list):
+    return sum(arg_list)
 
-def multiplier(*args):
-    return prod(args)
+def multiplier(arg_list):
+    return prod(arg_list)
 
 def power(x, exp=2):
     return x**exp
 
-final_answer_tool = Tool(tool_name="final answer",
-                   description="use this tool to provide the final answer once you have figured it out",
-                   func=final_answer,
-                   input_desc=dict(answer="the final answer to return"))
+final_answer_tool = Tool(
+    function=final_answer,
+    name="final answer",
+    description="use this tool to provide the final answer once you have figured it out",
+    params=[ToolParam("answer", "the final answer to return")]
+)
+user_input_tool = Tool(
+    function=user_input,
+    name="user input",
+    description="use this tool to request additional details or clarification from the user",
+    params=[ToolParam("query", "query to ask the user")]
+)
+search_tool = Tool(
+    function=search,
+    name = "search",
+    description = "use this tool to search the web for information",
+    params=[ToolParam("query", "query to search")]
+)
+power_tool = Tool(
+    function=power,
+    name = "exponentiation",
+    description = "use this tool to raise a number to the given power",
+    params=[ToolParam("x", "value to exponentiate"),
+            ToolParam("exp", "power of the exponent", default=2),]
+)
+adder_tool = Tool(
+    function=adder,
+    name="addition",
+    description="use this tool to add numbers",
+    params=[ToolParam("arg_list","list of numbers to add")]
+)
+mult_tool = Tool(
+    function=multiplier,
+    name="multiplier",
+    description="use this tool to multiply numbers",
+    params=[ToolParam("arg_list","list of arguments with numbers to multiply")]
+)
 
-user_input_tool = Tool(tool_name="user input",
-                   description="use this tool to request additional details or clarification from the user",
-                   func=user_input,
-                   input_desc=dict(query="query to ask the user"))
+tool_list = [final_answer_tool, user_input_tool, search_tool, power_tool, adder_tool, mult_tool]
 
-search_tool = Tool(tool_name="search",
-                   description="use this tool to search the web for information",
-                   func=search,
-                   # input_desc=dict(query="question to search"))
-                   input_desc={"query":"question to search"})
-
-power_tool = Tool(tool_name="exponentiation",
-                   description="use this tool to raise a number to the given power",
-                   func=power,
-                   input_desc=dict(x="the value to exponentiate", exp="the power of the exponent, defaults to 2"))
-
-adder_tool = Tool(tool_name="addition",
-                   description="use this tool to add numbers",
-                   func=adder,
-                   input_desc=dict(a="the first number to add", b="the second number to add", args="list any additional numbers to add"))
-
-mult_tool = Tool(tool_name="multiplier",
-                   description="use this tool to multiply numbers",
-                   func=multiplier,
-                   input_desc=dict(args="positional arguments with numbers to multiply"))
-
-toolkit = Toolkit(final_answer_tool, user_input_tool, search_tool, power_tool, adder_tool, mult_tool)
-
-agent = Agent(llm_class=OpenAIChatModel,
-              toolkit=toolkit)
+agent = Agent(llm=OpenAIChatModel(), tools=tool_list)
 
 agent.run("what is 2+3")
 

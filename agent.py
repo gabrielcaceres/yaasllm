@@ -134,7 +134,7 @@ class Agent:
     def clear_history(self):
         self.history = []
 
-    def run(self, task: Prompt | str, reset = True):
+    def run(self, task: Prompt | str, reset = False):
         if reset:
             self.reset_history()
         action_plan = self.determine_actions(task)

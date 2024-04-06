@@ -48,10 +48,12 @@ class Prompt(str):
    
     @cached_property
     def arg_list(self):
+        # Check if there are placeholders to fill
         return [arg for _, arg, _, _ in Formatter().parse(self) if arg is not None]
 
     @cached_property
     def is_template(self):
+        # If there are variables that can be filled, then prompt is a template
         if self.arg_list:
             return True
         else:

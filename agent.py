@@ -100,7 +100,8 @@ class Agent:
         self.toolkit = Toolkit(*tools)
         sys_prompt = sys_prompt_template.format(
             answer_format=answer_format,
-            tool_descriptions=self.toolkit.actions_schema_formatted).data
+            obs_format=obs_format,
+            tool_descriptions=self.toolkit.actions_schema_formatted)
         self.system_prompt = system_prompt or llm.system_prompt or sys_prompt
         self.init_history = init_history or []
         self.history = self.init_history.copy() or []
@@ -147,7 +148,7 @@ class Agent:
         return outcome
 
     def determine_actions(self, context):
-        response = self.llm.chat(prompt=obs_prompt.format(obs=context).data)
+        response = self.llm.chat(prompt=obs_prompt.format(obs=context))
         return response
 
     def execute(self, action_plan):
